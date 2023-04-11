@@ -63,21 +63,16 @@ int main(int argc, char *argv[])
 
   int startIdx, endIdx;
   int r = M % p;
+  //pid_t pid_temp[10];
 
   double* result = (double*)malloc(M * M * sizeof(double));
-
-  int fd[2];
-  if (pipe(fd) == -1) { //부모-자식 프로세스 간 파이프 생성
-	  perror("pipe");
-	  exit(1);
-  }
-
 
   init_timelog(1);
   start_timelog(0);
   
   for (int i = 0; i < p; i++){  
 	pid_t pid = fork();
+	//pid_temp[i] = getpid();
 
 	if(r == 0) //행렬의 n과 프로세스의 개수의 나머지가 0이면
 	{
@@ -103,27 +98,29 @@ int main(int argc, char *argv[])
 				for(int l = 0; l < M; l++){
 					res += data1[j * M + l] * data2[l * M + k];
 				}
-				
-				write(fd[1], &res, sizeof(double));
+				result[j * M + k] = res;
 			}
-		}
-  		exit(0);		
+		}		
 	}
   }
   
   finish_timelog(0);
   close_timelog();
    
-  //부모 프로세스
-  double buf;
-  for (int i = 0; i < M * M; i++){
-	  read(fd[0], &buf, sizeof(double));
-	  result[i] = buf;
-  }
-
   ofd = Creat(argv[3], 0644); //행렬의 곱을 저장할 세 번째 인자 파일 생성
   write(ofd, result, M * M * sizeof(double)); //자식 프로세스에서 구한 행렬의 곱 저장
   close(ofd);
+
+  /* 자식 프로세스 종료
+  for (int i = 0; i < p; i++) {
+	if (kill(pid_temp[i], SIGTERM) < 0) {
+		fprintf(stderr, "Failed kill process");
+	}
+	else { //자식 프로세스가 종료될 때까지 대기
+		int status;
+		waitpid(pid_temp[i], &status, 0);
+	}
+  } */
 
   munmap(addr1, finfo1.st_size);
   munmap(addr2, finfo1.st_size);
